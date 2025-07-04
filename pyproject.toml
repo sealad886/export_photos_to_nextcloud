@@ -4,10 +4,10 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "export-photos-to-nextcloud"
-description = "A modern Python tool for exporting photos from Apple Photos.app and syncing them to Nextcloud"
+description = "Export photos from Apple Photos.app to Nextcloud with a `{year}/{month}` folder structure for more easily sideloading a large library to Nextcloud AIO during a user's initial setup."
 readme = "README.md"
 requires-python = ">=3.10"
-license = {text = "GPL3.0-or-later"}
+license = {file = "LICENSE"}
 authors = [
     {name = "Dr. Andrew Cox", email = "dev@andrewcox.doctor"}
 ]
@@ -16,7 +16,6 @@ classifiers = [
     "Development Status :: 4 - Beta",
     "Environment :: Console",
     "Intended Audience :: End Users/Desktop",
-    "License :: OSI Approved :: GPL3.0-or-later License",
     "Operating System :: MacOS",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.10",
@@ -55,7 +54,7 @@ export_photos_to_nextcloud_pkg = ["*.txt", "*.md"]
 
 # Development tools configuration
 [tool.black]
-line-length = 88
+line-length = 120
 target-version = ['py38']
 include = '\.pyi?$'
 extend-exclude = '''
@@ -75,7 +74,7 @@ extend-exclude = '''
 [tool.isort]
 profile = "black"
 multi_line_output = 3
-line_length = 88
+line_length = 120
 known_first_party = ["export_photos_to_nextcloud_pkg"]
 
 [tool.mypy]

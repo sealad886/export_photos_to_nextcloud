@@ -1,0 +1,39 @@
+# Export Photos to Nextcloud - Configuration File
+#
+# This YAML configuration file allows you to specify default values for the
+# export-photos-to-nextcloud tool. Command line arguments will override these values.
+#
+# All paths support ~ expansion for home directory
+
+# Required settings
+export_dir: "~/PhotosExport"
+nc_photos_dir: "~/Nextcloud/Photos"     # This is the default location used by Nextcloud Desktop
+log_file: "~/export-photos.log"
+
+# Optional settings
+dry_run: false      # When true, no changes will be made
+use_symlink: true   # When true, symlinks will be used instead of copies
+cleanup: false      # When true, common-sense export cleanup will be performed.
+                    #   This includes removing empty directories and files that are not in the export directory.
+                    #   Use with caution, as it will delete files in the export directory that would not be exported using
+                    #   the current configuration.
+export_aae: false   # When true, AAE files will be exported (files that contain edit-data in Photos)
+verbose: 0          # Verbosity level (0-2)
+quiet: false        # When true, suppress most output. Overrides verbose setting.
+
+# Example configurations:
+#
+# For a typical setup:
+# export_dir: "~/Documents/PhotosExport"
+# nc_photos_dir: "~/Nextcloud/Photos"
+# log_file: "~/logs/photos-export.log"
+#
+# For testing with verbose output:
+# dry_run: true
+# verbose: 2
+# quiet: false
+#
+# For production runs:
+# cleanup: true
+# export_aae: true
+# verbose: 1

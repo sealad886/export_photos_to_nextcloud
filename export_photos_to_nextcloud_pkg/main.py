@@ -1,12 +1,16 @@
-#!/Users/andrew/venvs/scripts/bin/python3
+#!/usr/bin/env python3
 """
 OSXPhotos to Nextcloud Export Tool
 
 A modern Python replacement for the bash script that exports photos from
 Apple Photos.app and syncs them to Nextcloud with beautiful progress bars
 and robust logging.
+---
+Copyright (c) 2025 Andrew Cox
+This file is part of the export_photos_to_nextcloud package.
 """
 
+from json import load
 import os
 import sys
 import signal
@@ -16,6 +20,7 @@ from pathlib import Path
 from typing import Optional, List, Dict, Any
 from dataclasses import dataclass
 from contextlib import contextmanager
+from pathlib import Path
 
 import click
 from loguru import logger
@@ -28,6 +33,8 @@ from rich.panel import Panel
 from rich.tree import Tree
 from rich.text import Text
 from rich import print as rprint
+
+from export_photos_to_nextcloud_pkg.load_yaml_config import load_yaml_config
 
 # Global flag for osxphotos availability - will be set when needed
 _OSXPHOTOS_AVAILABLE = None
@@ -499,11 +506,13 @@ class PhotoExporter:
 
 
 @click.command()
-@click.option('-e', '--export-dir', required=True, type=click.Path(),
+@click.option('-c', '--config', type=click.Path(),
+              help='Path to YAML configuration file')
+@click.option('-e', '--export-dir', type=click.Path(),
               help='Export destination directory')
-@click.option('-n', '--nc-photos-dir', required=True, type=click.Path(),
+@click.option('-n', '--nc-photos-dir', type=click.Path(),
               help='Nextcloud sync directory')
-@click.option('-l', '--log-file', required=True, type=click.Path(),
+@click.option('-l', '--log-file', type=click.Path(),
               help='Path to log file')
 @click.option('--dry-run', is_flag=True,
               help='Show what would happen, but don\'t write or link')
@@ -511,7 +520,7 @@ class PhotoExporter:
               help='Do not create symlinks into Nextcloud')
 @click.option('--use-symlink', is_flag=True, default=True,
               help='Create symlinks into Nextcloud (default)')
-@click.option('-c', '--cleanup', is_flag=True,
+@click.option('--cleanup', is_flag=True,
               help='Do automated cleanup tasks (orientation, keywords, etc.)')
 @click.option('--export-aae', is_flag=True,
               help='Export AAE adjustments files detailing edits made to originals')
@@ -520,42 +529,86 @@ class PhotoExporter:
 @click.option('-q', '--quiet', is_flag=True,
               help='Suppress non-essential output')
 @click.version_option(version=__version__, package_name="export-photos-to-nextcloud")
-def main(export_dir: str, nc_photos_dir: str, log_file: str,
-         dry_run: bool, no_symlink: bool, use_symlink: bool,
-         cleanup: bool, export_aae: bool, verbose: int, quiet: bool):
+def main(export_dir: str, nc_photos_dir: str,
+         log_file: str|os.PathLike|bytes|Path = "~/export_photos.log", dry_run: bool = False, no_symlink: bool = False,
+         use_symlink: bool = True, cleanup: bool = False, export_aae: bool = False,
+         verbose: int = 0, quiet: bool = False, config: str = None):
     """
     OSXPhotos to Nextcloud Export Tool
 
     A modern Python tool for exporting photos from Apple Photos.app
     and syncing them to Nextcloud with beautiful progress tracking.
 
+    Command line arguments take precedence over configuration file values.
+
     Example:
         python export_photos_to_nextcloud.py \\
+            --config config.yaml \\
             --export-dir ~/PhotosExport \\
             --nc-photos-dir ~/Nextcloud/Photos \\
             --log-file ~/sync.log \\
             --dry-run -v
     """
 
+    # Load configuration from YAML file first
+    yaml_config = load_yaml_config(Path(config) if config else None)
+
+    # Merge configurations: CLI args override YAML config
+    # Start with YAML config as base
+    final_config = {}
+
+    # Set values from YAML config
+    final_config.update(yaml_config)
+
+    # Override with CLI arguments (only if provided)
+    if export_dir is not None:
+        final_config['export_dir'] = export_dir
+    if nc_photos_dir is not None:
+        final_config['nc_photos_dir'] = nc_photos_dir
+    if log_file is not None:
+        final_config['log_file'] = log_file
+    if dry_run:
+        final_config['dry_run'] = dry_run
+    if cleanup:
+        final_config['cleanup'] = cleanup
+    if export_aae:
+        final_config['export_aae'] = export_aae
+    if verbose > 0:
+        final_config['verbose'] = verbose
+    if quiet:
+        final_config['quiet'] = quiet
+
     # Handle symlink logic
     if no_symlink:
-        use_symlink = False
+        final_config['use_symlink'] = False
+    elif not no_symlink and use_symlink:
+        final_config['use_symlink'] = True
 
-    # Create configuration
-    config = Config(
-        export_dir=Path(export_dir),
-        nc_photos_dir=Path(nc_photos_dir),
-        log_file=Path(log_file),
-        dry_run=dry_run,
-        use_symlink=use_symlink,
-        cleanup=cleanup,
-        export_aae=export_aae,
-        verbose=verbose,
-        quiet=quiet
+    # Validate required fields
+    required_fields = ['export_dir', 'nc_photos_dir', 'log_file']
+    missing_fields = [field for field in required_fields if field not in final_config or not final_config[field]]
+
+    if missing_fields:
+        error_msg = f"Error: Missing required configuration: {', '.join(missing_fields)}"
+        click.echo(error_msg, err=True)
+        click.echo("These can be provided via command line arguments or configuration file.", err=True)
+        sys.exit(1)
+
+    # Create configuration object
+    app_config = Config(
+        export_dir=Path(final_config['export_dir']),
+        nc_photos_dir=Path(final_config['nc_photos_dir']),
+        log_file=Path(final_config['log_file']),    # type: ignore[assignment]
+        dry_run=final_config.get('dry_run', False),
+        use_symlink=final_config.get('use_symlink', True),
+        cleanup=final_config.get('cleanup', False),
+        export_aae=final_config.get('export_aae', False),
+        verbose=final_config.get('verbose', 0),
+        quiet=final_config.get('quiet', False)
     )
 
     # Create and run exporter
-    exporter = PhotoExporter(config)
+    exporter = PhotoExporter(app_config)
     success = exporter.run()
 
     sys.exit(0 if success else 1)

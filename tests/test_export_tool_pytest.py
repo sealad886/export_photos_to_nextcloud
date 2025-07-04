@@ -13,6 +13,7 @@ import subprocess
 import pytest
 from pathlib import Path
 from typing import List, Optional
+import yaml
 
 # Test configuration
 SCRIPT_PATH = Path(__file__).parent.parent / "export_photos_to_nextcloud_pkg" / "main.py"
@@ -354,6 +355,144 @@ class TestIntegration:
 
         # Check for key workflow steps in logs
         assert "Starting photo export" in log_content or "photo export" in log_content.lower()
+
+
+class TestYAMLConfiguration:
+    """Test YAML configuration file support."""
+
+    def test_yaml_config_file_loading(self, temp_dir, sample_paths):
+        """Test loading configuration from YAML file."""
+        config_file = temp_dir / "config.yaml"
+        config_data = {
+            'export_dir': str(sample_paths['export_dir']),
+            'nc_photos_dir': str(sample_paths['nc_dir']),
+            'log_file': str(sample_paths['log_file']),
+            'dry_run': True,
+            'verbose': 2,
+            'cleanup': True
+        }
+
+        with open(config_file, 'w') as f:
+            yaml.dump(config_data, f)
+
+        # Test with config file
+        result = run_script([
+            "--config", str(config_file),
+            "--dry-run"
+        ])
+
+        # Should not fail due to missing required args
+        assert result.returncode == 0 or "osxphotos" in result.stderr.lower()
+
+    def test_yaml_config_cli_override(self, temp_dir, sample_paths):
+        """Test that CLI arguments override YAML configuration."""
+        config_file = temp_dir / "config.yaml"
+        config_data = {
+            'export_dir': str(sample_paths['export_dir']),
+            'nc_photos_dir': str(sample_paths['nc_dir']),
+            'log_file': str(sample_paths['log_file']),
+            'dry_run': False,
+            'verbose': 0
+        }
+
+        with open(config_file, 'w') as f:
+            yaml.dump(config_data, f)
+
+        # Override with CLI args
+        result = run_script([
+            "--config", str(config_file),
+            "--dry-run",  # This should override the config file
+            "-vv"  # This should override the config file
+        ])
+
+        # Should not fail due to missing required args
+        assert result.returncode == 0 or "osxphotos" in result.stderr.lower()
+
+    def test_yaml_config_missing_file(self, temp_dir, sample_paths):
+        """Test handling of missing configuration file."""
+        missing_config = temp_dir / "missing.yaml"
+
+        result = run_script([
+            "--config", str(missing_config),
+            "--export-dir", str(sample_paths['export_dir']),
+            "--nc-photos-dir", str(sample_paths['nc_dir']),
+            "--log-file", str(sample_paths['log_file']),
+            "--dry-run"
+        ])
+
+        # Should work with CLI args even if config file is missing
+        assert result.returncode == 0 or "osxphotos" in result.stderr.lower()
+
+    def test_yaml_config_required_fields_validation(self, temp_dir):
+        """Test validation of required fields."""
+        config_file = temp_dir / "incomplete.yaml"
+        config_data = {
+            'export_dir': str(temp_dir / "export"),
+            # Missing nc_photos_dir and log_file
+            'dry_run': True
+        }
+
+        with open(config_file, 'w') as f:
+            yaml.dump(config_data, f)
+
+        result = run_script([
+            "--config", str(config_file)
+        ])
+
+        # Should fail due to missing required fields
+        assert result.returncode != 0
+        assert "Missing required configuration" in result.stderr
+
+    def test_yaml_config_path_expansion(self, temp_dir, sample_paths):
+        """Test that paths in YAML config are properly expanded."""
+        config_file = temp_dir / "config.yaml"
+        config_data = {
+            'export_dir': "~/test_export",  # Should expand ~
+            'nc_photos_dir': str(sample_paths['nc_dir']),
+            'log_file': str(sample_paths['log_file']),
+            'dry_run': True
+        }
+
+        with open(config_file, 'w') as f:
+            yaml.dump(config_data, f)
+
+        result = run_script([
+            "--config", str(config_file)
+        ])
+
+        # Should not fail due to path expansion issues
+        assert result.returncode == 0 or "osxphotos" in result.stderr.lower()
+
+    def test_yaml_config_malformed_file(self, temp_dir, sample_paths):
+        """Test handling of malformed YAML file."""
+        config_file = temp_dir / "malformed.yaml"
+
+        with open(config_file, 'w') as f:
+            f.write("invalid: yaml: content: [unclosed")
+
+        result = run_script([
+            "--config", str(config_file),
+            "--export-dir", str(sample_paths['export_dir']),
+            "--nc-photos-dir", str(sample_paths['nc_dir']),
+            "--log-file", str(sample_paths['log_file']),
+            "--dry-run"
+        ])
+
+        # Should work with CLI args even if config file is malformed
+        assert result.returncode == 0 or "osxphotos" in result.stderr.lower()
+
+    def test_yaml_config_example_file(self, temp_dir):
+        """Test that the example configuration file is valid."""
+        example_config = Path(__file__).parent.parent / "config.yaml.example"
+
+        if example_config.exists():
+            with open(example_config, 'r') as f:
+                config_data = yaml.safe_load(f)
+
+            assert isinstance(config_data, dict)
+            assert 'export_dir' in config_data
+            assert 'nc_photos_dir' in config_data
+            assert 'log_file' in config_data
 
 
 if __name__ == "__main__":
