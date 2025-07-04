@@ -15,7 +15,7 @@ from pathlib import Path
 from typing import List, Optional
 
 # Test configuration
-SCRIPT_PATH = Path(__file__).parent / "export_photos_to_nextcloud.py"
+SCRIPT_PATH = Path(__file__).parent.parent / "export_photos_to_nextcloud_pkg" / "main.py"
 
 
 @pytest.fixture

@@ -29,17 +29,35 @@ from rich.tree import Tree
 from rich.text import Text
 from rich import print as rprint
 
-# Try to import osxphotos from the system installation
-sys.path.insert(0, "/opt/homebrew/Cellar/osxphotos/0.72.1/libexec/lib/python3.13/site-packages")
-
-try:
-    import osxphotos
-    OSXPHOTOS_AVAILABLE = True
-except ImportError:
-    OSXPHOTOS_AVAILABLE = False
-    logger.warning("osxphotos not available as Python import, will use CLI")
+# Global flag for osxphotos availability - will be set when needed
+_OSXPHOTOS_AVAILABLE = None
 
 console = Console()
+
+# Import version for Click
+try:
+    from . import __version__
+except ImportError:
+    __version__ = "1.0.0"
+
+
+def _check_osxphotos_availability():
+    """Check if osxphotos is available as a Python import."""
+    global _OSXPHOTOS_AVAILABLE
+
+    if _OSXPHOTOS_AVAILABLE is not None:
+        return _OSXPHOTOS_AVAILABLE
+
+    # Try to import osxphotos from the system installation
+    sys.path.insert(0, "/opt/homebrew/Cellar/osxphotos/0.72.1/libexec/lib/python3.13/site-packages")
+
+    try:
+        import osxphotos
+        _OSXPHOTOS_AVAILABLE = True
+        return True
+    except ImportError:
+        _OSXPHOTOS_AVAILABLE = False
+        return False
 
 
 @dataclass
@@ -132,7 +150,11 @@ class PhotoExporter:
         """Check that required tools are available."""
         logger.debug("🔍 Checking dependencies...")
 
-        # Check osxphotos
+        # Check osxphotos Python import availability
+        if not _check_osxphotos_availability():
+            logger.warning("osxphotos not available as Python import, will use CLI")
+
+        # Check osxphotos CLI
         if not shutil.which("osxphotos"):
             logger.error("❌ osxphotos not found. Install with: brew tap rhetbull/osxphotos && brew install osxphotos")
             raise click.ClickException("osxphotos not found")
@@ -497,7 +519,7 @@ class PhotoExporter:
               help='Increase verbosity (-v, -vv, -vvv)')
 @click.option('-q', '--quiet', is_flag=True,
               help='Suppress non-essential output')
-@click.version_option()
+@click.version_option(version=__version__, package_name="export-photos-to-nextcloud")
 def main(export_dir: str, nc_photos_dir: str, log_file: str,
          dry_run: bool, no_symlink: bool, use_symlink: bool,
          cleanup: bool, export_aae: bool, verbose: int, quiet: bool):
@@ -539,3 +561,6 @@ def main(export_dir: str, nc_photos_dir: str, log_file: str,
     sys.exit(0 if success else 1)
 
 __all__ = ["main", "Config", "PhotoExporter"]
+
+if __name__ == "__main__":
+    main()

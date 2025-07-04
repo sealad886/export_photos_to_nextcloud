@@ -8,7 +8,7 @@ to Nextcloud with beautiful progress tracking and robust logging.
 __version__ = "1.0.0"
 __description__ = "Export photos from Apple Photos.app to Nextcloud with a `{year}/{month}` folder structure for more easily sideloading a large library to Nextcloud AIO during a user's initial setup."
 
-# Public API
-from .export_photos_to_nextcloud import PhotoExporter, Config
+# Import main components
+from .main import main, Config, PhotoExporter
 
-__all__ = ["PhotoExporter", "Config", "__version__"]
+__all__ = ["main", "Config", "PhotoExporter", "__version__"]

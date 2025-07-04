@@ -1,10 +1,9 @@
 [build-system]
-requires = ["setuptools>=45", "wheel"]
+requires = ["setuptools>=45", "wheel", "setuptools-scm"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "export-photos-to-nextcloud"
-version = "1.0.0"
 description = "A modern Python tool for exporting photos from Apple Photos.app and syncing them to Nextcloud"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -27,41 +26,32 @@ classifiers = [
     "Topic :: System :: Archiving :: Backup",
     "Topic :: Utilities",
 ]
-
-dependencies = [
-    "click>=8.0.0",
-    "loguru>=0.7.0",
-    "rich>=13.0.0",
-    "osxphotos>=0.72.1",
-]
-
-[project.optional-dependencies]
-dev = [
-    "pytest>=7.0.0",
-    "pytest-timeout>=2.1.0",
-    "black>=22.0.0",
-    "isort>=5.10.0",
-    "flake8>=4.0.0",
-    "mypy>=0.950",
-]
-test = [
-    "pytest>=7.0.0",
-    "pytest-timeout>=2.1.0",
-]
+dynamic = ["version", "dependencies"]
 
 [project.scripts]
-export-photos-to-nextcloud = "export_photos_to_nextcloud.__main__:main"
+export-photos-to-nextcloud = "export_photos_to_nextcloud_pkg:main"
 
 [project.urls]
 Homepage = "https://github.com/sealad886/export-photos-to-nextcloud"
 Repository = "https://github.com/sealad886/export-photos-to-nextcloud.git"
 Issues = "https://github.com/sealad886/export-photos-to-nextcloud/issues"
 
+# Dynamic metadata configuration
+[tool.setuptools.dynamic]
+version = {attr = "export_photos_to_nextcloud_pkg.__version__"}
+dependencies = {file = ["requirements.txt"]}
+
+[tool.setuptools.dynamic.optional-dependencies]
+dev = {file = ["requirements/requirements-dev.txt"]}
+test = {file = ["requirements/requirements-test.txt"]}
+
 [tool.setuptools.packages.find]
-include = ["export_photos_to_nextcloud*"]
+where = ["."]
+include = ["export_photos_to_nextcloud_pkg*"]
+exclude = ["export_photos_to_nextcloud_pkg.tests*"]
 
 [tool.setuptools.package-data]
-export_photos_to_nextcloud = ["*.txt", "*.md"]
+export_photos_to_nextcloud_pkg = ["*.txt", "*.md"]
 
 # Development tools configuration
 [tool.black]
@@ -86,7 +76,7 @@ extend-exclude = '''
 profile = "black"
 multi_line_output = 3
 line_length = 88
-known_first_party = ["export_photos_to_nextcloud"]
+known_first_party = ["export_photos_to_nextcloud_pkg"]
 
 [tool.mypy]
 python_version = "3.10"
@@ -107,7 +97,7 @@ strict_equality = true
 minversion = "7.0"
 addopts = "-ra -q --strict-markers"
 testpaths = [
-    "test_export_tool_pytest.py",
+    "tests",
 ]
 markers = [
     "slow: marks tests as slow (deselect with '-m \"not slow\"')",
